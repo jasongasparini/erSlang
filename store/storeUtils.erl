@@ -9,5 +9,13 @@
 %
 % -- Public -- 
 %
-total([Head|Tail]) -> store:cost(Head) + total(Tail);
+total([Head|Tail]) -> intVal(store:cost(Head)) + total(Tail);
 total([]) -> 0.
+
+
+%
+% -- Private -- 
+%
+
+intVal(Val) when is_integer(Val) -> Val;
+intVal(_) -> 0.
