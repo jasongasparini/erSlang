@@ -3,7 +3,7 @@
 % By Alan.
 %
 
--module(storeUtils).
+-module(storeUtils2).
 -export([total/1, test/0, myMap/2]).
 
 %
