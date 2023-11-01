@@ -22,7 +22,7 @@ start() ->
    io:fwrite("Starting AG server.~n",[]),
    ServerPid = spawn(fun serverLoop/0),
    % -- Display the initial location description by moving north from -1.
-   {_NewLocale, Description, NewInventory} = processCommand(-1, "north", ServerPid, []),
+   {_NewLocale, Description, _NewInventory} = processCommand(-1, "north", ServerPid, []),
    io:fwrite("~n~s~n~n", [Description]),
 
    % -- Kick off the game loop with the ServerPID, location = 0, and turn count = 1.
@@ -37,14 +37,9 @@ gameLoop(ServerPid, CurrentLocale, TurnCount, Score, InventoryList) ->
    % -- Show the map and get input from the player.
    io:fwrite("~s", [showMap(CurrentLocale)]),
    io:fwrite("~nScore=~w  Turn ~w ] ", [Score, TurnCount]),
-   {ok, Input} = io:fread("Enter a command (or help) -] ", "~s"),  % Input gets returned as a list from io:fread.
+   {ok, Input} = io:fread("Where will you go? (North, East, South, West) ", "~s"),  % Input gets returned as a list from io:fread.
    [Command | _] = Input,   % (Because Input is a list.)
-   %
-   % if Command = "pickup" ->  
-   %       NewInventory = InventoryList ++ locationItems(CurrentLocale);
-   % ?else ->
-   %    NewInventory = InventoryList.
-   % end.
+   
 
    % -- Process the player's input/command into a NewLocale and Description.
    {NewLocale, Description, NewInventory} = processCommand(CurrentLocale, Command, ServerPid, InventoryList),
@@ -82,14 +77,14 @@ processCommand(CurrentLocale, Command, ServerPid, Inventory) ->
       "show map"  -> {CurrentLocale, showMap(CurrentLocale), Inventory};
       "inventory" -> {CurrentLocale, showInventory(Inventory), Inventory};
       "i"         -> {CurrentLocale, showInventory(Inventory), Inventory};
-      % "pickup"    -> {CurrentLocale, Inventory, pickUp(CurrentLocale, Inventory)};
+      "pickup"    -> {CurrentLocale, showInventory(Inventory), pickUp(CurrentLocale, Inventory)};
       % -- Otherwise...
       _Else   -> {CurrentLocale, "I do not understand.", Inventory}  % Starting _Else with "_" prevents the "unused" warning.
    end.
 
 
 helpText() -> io_lib:format("You can enter compass directions: [n] or [north], [s] or [south], [e] or [east], ", []) ++
-              io_lib:format("[w] or [west], as well as [quit], [look], [help], [map], [inventory], and other commands.", []).
+              io_lib:format("[w] or [west], as well as [quit], [look], [help], [map], [inventory], [pickup], and other commands.", []).
 
 
 % Send the move message (a tuple) to the server.
@@ -114,12 +109,12 @@ serverLoop() ->
             serverLoop();
          ?else ->
             % Invalid move.
-            FromPid ! {self(), {CurrentLocale, "You cannot go that way.", Inventory}},
+            FromPid ! {self(), {CurrentLocale, "You smash your head on an invisible wall. You cannot go that way.", Inventory}},
             serverLoop()
          end;
 
       {FromPid, _, Inventory} ->
-         FromPid ! {self(), "Internal error: You are lost. Nice going, Indiana.", Inventory},
+         FromPid ! {self(), "Internal error: How the f*** did you manage this...", Inventory},
          serverLoop()
    end.
 
@@ -128,7 +123,7 @@ serverLoop() ->
 mapper(-1, north) -> 0;
 mapper( 0, north) -> 1;
 mapper( 0, south) -> 2;
-mapper( 0, west)  -> 5;
+% mapper( 0, west)  -> 5; path removed
 mapper( 1, south) -> 0;
 mapper( 1, west)  -> 5;
 mapper( 2, north) -> 0;
@@ -136,22 +131,23 @@ mapper( 2, east)  -> 4;
 mapper( 3, south) -> 4;
 mapper( 4, north) -> 3;
 mapper( 4, west)  -> 2;
-mapper( 5, north) -> 1;
-mapper( 5, east)  -> 0;
+% mapper( 5, north) -> 1; doesnt exist
+mapper( 5, east)  -> 1;
 mapper( _, _)     -> -1.
 
 
 % Show map. Double-check with mapper().
 showMap(CurrentLocale) ->
-   io_lib:format("................... ~n",    []) ++
-   io_lib:format(".. +---- ~s ........ ~n",   [dispLocale(CurrentLocale, 1)]) ++
-   io_lib:format(".. | ... | ........ ~n",    []) ++
-   io_lib:format(".. | ... | ........ ~n",    []) ++
-   io_lib:format(".. ~s --- ~s ... ~s .. ~n", [dispLocale(CurrentLocale, 5), dispLocale(CurrentLocale, 0), dispLocale(CurrentLocale, 3)]) ++
-   io_lib:format("........ | ... | .. ~n",    []) ++
-   io_lib:format("........ | ... | .. ~n",    []) ++
-   io_lib:format("........ ~s --- ~s .. ~n",  [dispLocale(CurrentLocale, 2), dispLocale(CurrentLocale, 4)]) ++
-   io_lib:format("................... ~n",    []).
+   io_lib:format(".................................................... ~n",    []) ++
+   io_lib:format("....  --- ~s ........................................ ~n",   [dispLocale(CurrentLocale, 1)]) ++
+   io_lib:format("... / ... | ........................................ ~n",    []) ++
+   io_lib:format(". ~s ..... | ........................................ ~n",    [dispLocale(CurrentLocale, 5)]) ++
+   io_lib:format("......... | ........................................ ~n",    []) ++
+   io_lib:format("......... ~s ... ~s .................................. ~n", [dispLocale(CurrentLocale, 0), dispLocale(CurrentLocale, 3)]) ++
+   io_lib:format("......... | ... | .................................. ~n",    []) ++
+   io_lib:format("......... | ... | .................................. ~n",    []) ++
+   io_lib:format("......... ~s --- ~s .................................. ~n",  [dispLocale(CurrentLocale, 2), dispLocale(CurrentLocale, 4)]) ++
+   io_lib:format(".................................................... ~n",    []).
 
 
 dispLocale(CurrentLocale, MapLoc) ->
@@ -164,17 +160,17 @@ dispLocale(CurrentLocale, MapLoc) ->
 
 % Location Descriptions
 % These location descriptions DO NOT end with ~n newlines. The newline is taken care of in the display code.
-locationDesc(0)   -> io_lib:format("0. Inn of the Last Home~nThis tavern is famous for its wonderful food and ale.", []);
-locationDesc(1)   -> io_lib:format("1. Yellow Brick Road~nGold, emerald, rubies...", []);
+locationDesc(0)   -> io_lib:format("0. Lumbridge~nThe village of newbies and veterans alike. It has a cozy atmosphere and many call it home.", []);
+locationDesc(1)   -> io_lib:format("1. Varrock~nThe city of Varrock. A merchants paradise where scam artists and folks of all types gather.", []);
 locationDesc(2)   -> io_lib:format("2. Depths of the Earth~nYou find yourself in a vast subterranean network of interconnected caverns and tunnels.", []);
 locationDesc(3)   -> io_lib:format("3. Vault of the Drow~nYou have entered a hemispherical cyst in the crust of the earth, a huge domed vault miles long and nearly as wide.", []);
 locationDesc(4)   -> io_lib:format("4. Mouth of the Yawning Cave~nYou step into the inky darkness, a chorus of glowing eyes following your every move.", []);
-locationDesc(5)   -> io_lib:format("5. West Lake~nSomehow you have stumbled onto a freshwater lake in Hangzhou, China. There are temples, pagodas, and gardens all around, and some pretty good tea too.", []);
+locationDesc(5)   -> io_lib:format("5. Falador~nYou journey west to the City of the White Knights. The building are marble and pristine and men and women of status fill the streets. You feel like you don't belong here.", []);
 locationDesc(Loc) -> io_lib:format("Oops! Unknown locale: ~w.", [Loc]).
 
 
 % Location Items
-locationItems(0)    -> [item0a, item0b];
+locationItems(0)    -> [dagger, ale, steak];
 locationItems(1)    -> [item1a, item1b];
 locationItems(2)    -> [item2];
 locationItems(3)    -> [];
@@ -188,7 +184,7 @@ locationItems(_Loc) -> [].  % TODO: throw exception due to the invalid location 
 showInventory([])            -> io_lib:format("You are not carrying anything of use.", []);
 showInventory(InventoryList) -> io_lib:format("You are carrying ~w.", [InventoryList]).
 
-pickUp(CurrentLocale, Inventory) -> Inventory = Inventory ++ locationItems(CurrentLocale).
+pickUp(CurrentLocale, Inventory) -> Inventory ++ locationItems(CurrentLocale).
 
 
 itsPitchDark() -> io_lib:format("You are likely to be eaten by a grue. ~n",         []) ++
