@@ -1,13 +1,9 @@
-% ag_server8.erl - (Silver) Adventure Game Server
+% game.erl  An OSRS inspired text adventrure game
 
 -module(game).
 -author('Jason Gasparini').
 -define(else, true).  % -- This is to make the if statements (somewhat) readable.
 
-% TODO: Add to inventory by visiting locales.
-%       Increase score by visiting locales.
-%       Show ratio of score to turns at the end of the game.
-%       Move more of the gameplay logic into the server.
 
 -type direction() :: north | south | east | west | drink.
 
@@ -71,7 +67,6 @@ processCommand(CurrentLocale, Command, ServerPid, Inventory) ->
       "look"      -> {CurrentLocale, locationDesc(CurrentLocale), Inventory};
       "l"         -> {CurrentLocale, locationDesc(CurrentLocale), Inventory};
       "help"      -> {CurrentLocale, helpText(), Inventory};
-      "sing"      -> {CurrentLocale, itsPitchDark(), Inventory};
       "map"       -> {CurrentLocale, showMap(CurrentLocale), Inventory};
       "show map"  -> {CurrentLocale, showMap(CurrentLocale), Inventory};
       "inventory" -> {CurrentLocale, showInventory(Inventory), Inventory};
@@ -79,13 +74,14 @@ processCommand(CurrentLocale, Command, ServerPid, Inventory) ->
       "pickup"    -> {CurrentLocale, "You pick up a few items...", pickUp(CurrentLocale, Inventory)};
       "drink"     -> drank(ServerPid, {CurrentLocale, drink}, Inventory);
       "reset"     -> {0, "Game has been reset", []};
+      "place"     -> placed(CurrentLocale, Inventory);
       % -- Otherwise...
       _Else   -> {CurrentLocale, "I do not understand.", Inventory}  % Starting _Else with "_" prevents the "unused" warning.
    end.
 
 
 helpText() -> io_lib:format("You can enter compass directions: [n] or [north], [s] or [south], [e] or [east], ", []) ++
-              io_lib:format("[w] or [west], as well as [quit], [look], [help], [map], [inventory], [pickup], and other commands.", []).
+              io_lib:format("[w] or [west], as well as [quit], [look], [help], [map], [inventory], [pickup], [drink], [reset] and other commands.", []).
 
 
 % Send the move message (a tuple) to the server.
@@ -101,7 +97,7 @@ move(ServerPid, MoveTuple, Inventory) ->
                         {ServerPid, Response} -> Response
                     end;
                 false ->
-                    io:fwrite("As you turn away from the manor, you are viciously attacked by a ZOMBIE. If only you had picked up the dagger in Lumbridge...~n", []),
+                    io:fwrite("As you turn away from the manor, you are viciously attacked by a ZOMBIE. If only you had picked up the dagger you saw in Lumbridge...~n", []),
                     exit(self(), "Game Over.")
             end;
         _ ->
@@ -139,17 +135,13 @@ mapper(_, drink) -> 10;
 mapper(-1, north) -> 0;
 mapper( 0, north) -> 1;
 mapper( 0, east) -> 3;
-% mapper( 0, south) -> 2; path removed
-% mapper( 0, west)  -> 5; path removed
 mapper( 1, south) -> 0; 
 mapper( 1, west)  -> 5;
-% mapper( 2, north) -> 0; this location is getting moved
-% mapper( 2, east)  -> 4;
+mapper( 2, south)  -> 3;
 mapper( 3, south) -> 4;
 mapper( 3, north) -> 2;
+mapper( 3, west) -> 0;
 mapper( 4, north) -> 3;
-mapper( 4, west)  -> 2;
-% mapper( 5, north) -> 1; doesnt exist
 mapper( 5, east)  -> 1;
 mapper( 5, south)  -> 6;
 mapper( 6, north)  -> 5;
@@ -160,7 +152,7 @@ mapper( _, _)     -> -1.
 % Show map. Double-check with mapper().
 showMap(CurrentLocale) ->
    io_lib:format("...................................... ~s ............ ~n",    [dispLocale(CurrentLocale, 10)]) ++
-   io_lib:format("....  --- ~s ..... ~s -----............................. ~n",   [dispLocale(CurrentLocale, 1), dispLocale(CurrentLocale, 2)]) ++
+   io_lib:format("....  --- ~s ..... ~s -- ? ............................. ~n",   [dispLocale(CurrentLocale, 1), dispLocale(CurrentLocale, 2)]) ++
    io_lib:format("... / ... | ..... | .................................. ~n",    []) ++
    io_lib:format(". ~s ..... | ..... | .................................. ~n",    [dispLocale(CurrentLocale, 5)]) ++
    io_lib:format(". | ..... | ..... | .................................. ~n",    []) ++
@@ -168,7 +160,7 @@ showMap(CurrentLocale) ->
    io_lib:format(". ~s ............. | .................................. ~n",    [dispLocale(CurrentLocale, 6)]) ++
    io_lib:format("................. | .................................. ~n",    []) ++
    io_lib:format("................. ~s .................................. ~n",  [dispLocale(CurrentLocale, 4)]) ++
-   io_lib:format("..................................................... ~n",    []).
+   io_lib:format("...................................................... ~n",    []).
 
 
 dispLocale(CurrentLocale, MapLoc) ->
@@ -183,21 +175,21 @@ dispLocale(CurrentLocale, MapLoc) ->
 % These location descriptions DO NOT end with ~n newlines. The newline is taken care of in the display code.
 locationDesc(0)   -> io_lib:format("0. Lumbridge~nThe village of newbies and veterans alike. It has a cozy atmosphere and many call it home.", []);
 locationDesc(1)   -> io_lib:format("1. Varrock~nThe city of Varrock. A merchants paradise where scam artists and folks of all types gather.", []);
-locationDesc(2)   -> io_lib:format("2. Depths of the Earth~nYou find yourself in a vast subterranean network of interconnected caverns and tunnels.", []);
-locationDesc(3)   -> io_lib:format("3. Vault of the Drow~nYou have entered a hemispherical cyst in the crust of the earth, a huge domed vault miles long and nearly as wide.", []);
-locationDesc(4)   -> io_lib:format("4. Mouth of the Yawning Cave~nYou step into the inky darkness, a chorus of glowing eyes following your every move.", []);
+locationDesc(2)   -> io_lib:format("2. Death's Tomb~nAfter stumbling down a hidden tunnel located on the North side of the arena, you are greeted by a grand archway closed off by two stone doors.~nThe doors have characters carved into them of which you have never seen and cannot decipher.~n~nTo the right of the doors is a hole in the wall, almost in the shape of a mask of some sort. Maybe something fits here?", []);
+locationDesc(3)   -> io_lib:format("3. Emir's Arena~nAh, Emir's Arena, many stories have been told of great warriors making their name at this place.~nBut that was long ago, sand and dirt has molded what was and there is nothing left but the echos of the past.", []);
+locationDesc(4)   -> io_lib:format("4. Al Kharid~nAfter a long trip south, you come across the bustling centerpiece of the Kharidian Desert.", []);
 locationDesc(5)   -> io_lib:format("5. Falador~nYou journey west to the City of the White Knights. The building are marble and pristine and men and women of status fill the streets. You feel like you don't belong here.", []);
 locationDesc(6)   -> io_lib:format("6. Draynor Manor~nFollowing the long since abandoned path leading from the city, you arrive at the haunted manor. You think to yourself, 'It would be wise to turn back now'", []);
-locationDesc(10)   -> io_lib:format("?. Ape Atoll~n...You wake up stranded on an island filled with evil monkeys. Maybe you should't have drank that ale. There also seems to be a boat which could bring you home...", []);
+locationDesc(10)   -> io_lib:format("?. Ape Atoll~n...You wake up stranded on an island filled with evil monkeys. Maybe you shouldn't have drank that ale. You see a boat in the distance which could bring you home...", []);
 locationDesc(Loc) -> io_lib:format("Oops! Unknown locale: ~w.", [Loc]).
 
 
 % Location Items
 locationItems(0)    -> [dagger, ale, steak];
-locationItems(1)    -> [];
+locationItems(1)    -> [goldCoin];
 locationItems(2)    -> [];
-locationItems(3)    -> [];
-locationItems(4)    -> [];
+locationItems(3)    -> [rustyHelmet];
+locationItems(4)    -> [sand];
 locationItems(5)    -> [];
 locationItems(6)    -> [key];
 locationItems(10)   -> [mysteriousMask];
@@ -219,10 +211,15 @@ drank(ServerPid, {CurrentLocale, Direction}, Inventory) ->
          {CurrentLocale, "You have no ale to drink. Maybe you should go find some...", Inventory}
    end.
 
-
-itsPitchDark() -> io_lib:format("You are likely to be eaten by a grue. ~n",         []) ++
-                  io_lib:format("If this predicament seems particularly cruel, ~n", []) ++
-                  io_lib:format("consider whose fault it could be: ~n",             []) ++
-                  io_lib:format("not a torch or a match in your inventory. ~n",     []) ++
-                  io_lib:format("                              - MC Frontalot~n",   []) ++
-                  io_lib:format(" https://www.youtube.com/watch?v=4nigRT2KmCE",     []).
+placed(CurrentLocale, Inventory) -> 
+   case CurrentLocale == 2 of
+      true ->
+         case lists:member(mysteriousMask, Inventory) of
+            true -> 
+               {-1, "You place the mask you found from the island into the hole. Something clicks and the doors swing open to reveal a room filled with treasure. YOU WIN!!!", Inventory};
+            false ->
+               {CurrentLocale, "You don't have anything that might fit in the hole. It looks like some type of monkey-faced mask would fit here...", Inventory}
+         end;
+      false ->
+         {CurrentLocale, "In a German Accent you think to yourself, 'I lift things up and put them down'. It seems there is a better location to do this...", Inventory}
+      end.
