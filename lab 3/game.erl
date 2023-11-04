@@ -71,7 +71,7 @@ processCommand(CurrentLocale, Command, ServerPid, Inventory) ->
       "show map"  -> {CurrentLocale, showMap(CurrentLocale), Inventory};
       "inventory" -> {CurrentLocale, showInventory(Inventory), Inventory};
       "i"         -> {CurrentLocale, showInventory(Inventory), Inventory};
-      "pickup"    -> {CurrentLocale, "You pick up a few items...", pickUp(CurrentLocale, Inventory)};
+      "pickup"    -> pickUp(CurrentLocale, Inventory);                                                     %{CurrentLocale, "You look for some items to pickup...", pickUp(CurrentLocale, Inventory)};
       "drink"     -> drank(ServerPid, {CurrentLocale, drink}, Inventory);
       "reset"     -> {0, "Game has been reset", []};
       "place"     -> placed(CurrentLocale, Inventory);
@@ -91,7 +91,7 @@ move(ServerPid, MoveTuple, Inventory) ->
         {6, north} ->
             case lists:member(dagger, Inventory) of
                 true ->
-                    io:fwrite("As you listen to your instincts and flee the manor, you are attacked by a ZOMBIE! Good thing you picked up the dagger.~n", []),
+                    io:fwrite("After listening to your instincts and fleeing the manor, you are attacked by a ZOMBIE! Good thing you picked up the dagger.    *stab*~n", []),
                     ServerPid ! {self(), MoveTuple, Inventory},
                     receive
                         {ServerPid, Response} -> Response
@@ -187,10 +187,10 @@ locationDesc(Loc) -> io_lib:format("Oops! Unknown locale: ~w.", [Loc]).
 % Location Items
 locationItems(0)    -> [dagger, ale, steak];
 locationItems(1)    -> [goldCoin];
-locationItems(2)    -> [];
-locationItems(3)    -> [rustyHelmet];
+locationItems(2)    -> [nothing];
+locationItems(3)    -> [rustyHelmet, rustyBucket];
 locationItems(4)    -> [sand];
-locationItems(5)    -> [];
+locationItems(5)    -> [nothing];
 locationItems(6)    -> [key];
 locationItems(10)   -> [mysteriousMask];
 locationItems(_Loc) -> [].  % TODO: throw exception due to the invalid location value.
@@ -201,7 +201,13 @@ locationItems(_Loc) -> [].  % TODO: throw exception due to the invalid location 
 showInventory([])            -> io_lib:format("You are not carrying anything of use.", []);
 showInventory(InventoryList) -> io_lib:format("You are carrying ~w.", [InventoryList]).
 
-pickUp(CurrentLocale, Inventory) -> Inventory ++ locationItems(CurrentLocale).
+pickUp(CurrentLocale, Inventory) -> 
+   case lists:member(nothing, locationItems(CurrentLocale)) of 
+      true -> 
+         {CurrentLocale, "There's nothing to pick up at this location!", Inventory};
+      false ->
+         {CurrentLocale, "You pick up the item(s)", Inventory ++ locationItems(CurrentLocale)}
+   end.
 
 drank(ServerPid, {CurrentLocale, Direction}, Inventory) ->
    case lists:member(ale, Inventory) of
