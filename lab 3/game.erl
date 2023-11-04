@@ -81,7 +81,7 @@ processCommand(CurrentLocale, Command, ServerPid, Inventory) ->
 
 
 helpText() -> io_lib:format("You can enter compass directions: [n] or [north], [s] or [south], [e] or [east], ", []) ++
-              io_lib:format("[w] or [west], as well as [quit], [look], [help], [map], [inventory], [pickup], [drink], [reset] and other commands.", []).
+              io_lib:format("[w] or [west], as well as [quit], [look], [help], [map], [inventory], [pickup], [drink], [reset], [place], and other commands.", []).
 
 
 % Send the move message (a tuple) to the server.
@@ -98,7 +98,7 @@ move(ServerPid, MoveTuple, Inventory) ->
                     end;
                 false ->
                     io:fwrite("As you turn away from the manor, you are viciously attacked by a ZOMBIE. If only you had picked up the dagger you saw in Lumbridge...~n", []),
-                    exit(self(), "Game Over.")
+                    exit(self(), "Game Over.") % used exit here to really put into perspective how badly the zombie killed you
             end;
         _ ->
             ServerPid ! {self(), MoveTuple, Inventory},
