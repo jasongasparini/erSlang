@@ -9,7 +9,7 @@
 %       Show ratio of score to turns at the end of the game.
 %       Move more of the gameplay logic into the server.
 
--type direction() :: north | south | east | west.
+-type direction() :: north | south | east | west | drink.
 
 %--------
 % Public
@@ -26,20 +26,19 @@ start() ->
    io:fwrite("~n~s~n~n", [Description]),
 
    % -- Kick off the game loop with the ServerPID, location = 0, and turn count = 1.
-   gameLoop(ServerPid, 0, 1, 0, []).
+   gameLoop(ServerPid, 0, 1, []).
 
 
 %---------
 % Private
 %---------
 
-gameLoop(ServerPid, CurrentLocale, TurnCount, Score, InventoryList) ->
+gameLoop(ServerPid, CurrentLocale, TurnCount, InventoryList) ->
    % -- Show the map and get input from the player.
    io:fwrite("~s", [showMap(CurrentLocale)]),
-   io:fwrite("~nScore=~w  Turn ~w ] ", [Score, TurnCount]),
-   {ok, Input} = io:fread("Where will you go? (North, East, South, West) ", "~s"),  % Input gets returned as a list from io:fread.
-   [Command | _] = Input,   % (Because Input is a list.)
-   
+   io:fwrite("~nTurn ~w ] ", [TurnCount]),
+   {ok, Input} = io:fread("Where will you go? (North, East, South, West) ", "~s"),
+   [Command | _] = Input,
 
    % -- Process the player's input/command into a NewLocale and Description.
    {NewLocale, Description, NewInventory} = processCommand(CurrentLocale, Command, ServerPid, InventoryList),
@@ -51,8 +50,8 @@ gameLoop(ServerPid, CurrentLocale, TurnCount, Score, InventoryList) ->
    if (NewLocale < 0) ->
      io:fwrite("Goodbye.~n",[]);
    ?else ->
-     gameLoop(ServerPid, NewLocale, TurnCount+1, Score, NewInventory)  % This is tail recursion,
-   end. % if                                                            % so it's really a jump to the top of gameLoop.
+     gameLoop(ServerPid, NewLocale, TurnCount+1, NewInventory)
+   end. 
 
 
 processCommand(CurrentLocale, Command, ServerPid, Inventory) ->
@@ -77,7 +76,9 @@ processCommand(CurrentLocale, Command, ServerPid, Inventory) ->
       "show map"  -> {CurrentLocale, showMap(CurrentLocale), Inventory};
       "inventory" -> {CurrentLocale, showInventory(Inventory), Inventory};
       "i"         -> {CurrentLocale, showInventory(Inventory), Inventory};
-      "pickup"    -> {CurrentLocale, showInventory(Inventory), pickUp(CurrentLocale, Inventory)};
+      "pickup"    -> {CurrentLocale, "You pick up a few items...", pickUp(CurrentLocale, Inventory)};
+      "drink"     -> drank(ServerPid, {CurrentLocale, drink}, Inventory);
+      "reset"     -> {0, "Game has been reset", []};
       % -- Otherwise...
       _Else   -> {CurrentLocale, "I do not understand.", Inventory}  % Starting _Else with "_" prevents the "unused" warning.
    end.
@@ -90,11 +91,25 @@ helpText() -> io_lib:format("You can enter compass directions: [n] or [north], [
 % Send the move message (a tuple) to the server.
 -spec move(pid(), {integer(), direction()}, []) -> integer(). %  This is not enforced at runtime. It's for Dializer and Typer.
 move(ServerPid, MoveTuple, Inventory) ->
-   ServerPid ! {self(), MoveTuple, Inventory},
-   receive
-      {ServerPid, Response} -> Response  % This waits for a response from ToPid.
-   end.
-
+    case MoveTuple of
+        {6, north} ->
+            case lists:member(dagger, Inventory) of
+                true ->
+                    io:fwrite("As you listen to your instincts and flee the manor, you are attacked by a ZOMBIE! Good thing you picked up the dagger.~n", []),
+                    ServerPid ! {self(), MoveTuple, Inventory},
+                    receive
+                        {ServerPid, Response} -> Response
+                    end;
+                false ->
+                    io:fwrite("As you turn away from the manor, you are viciously attacked by a ZOMBIE. If only you had picked up the dagger in Lumbridge...~n", []),
+                    exit(self(), "Game Over.")
+            end;
+        _ ->
+            ServerPid ! {self(), MoveTuple, Inventory},
+            receive
+                {ServerPid, Response} -> Response  % This waits for a response from ToPid.
+            end
+    end.
 
 % This is the process spawned at the start.
 serverLoop() ->
@@ -120,6 +135,7 @@ serverLoop() ->
 
 
 % Mapper. Double-chcek with showMap().
+mapper(_, drink) -> 10;
 mapper(-1, north) -> 0;
 mapper( 0, north) -> 1;
 mapper( 0, south) -> 2;
@@ -133,18 +149,21 @@ mapper( 4, north) -> 3;
 mapper( 4, west)  -> 2;
 % mapper( 5, north) -> 1; doesnt exist
 mapper( 5, east)  -> 1;
+mapper( 5, south)  -> 6;
+mapper( 6, north)  -> 5;
+mapper( 10, _)    -> 0;
 mapper( _, _)     -> -1.
 
 
 % Show map. Double-check with mapper().
 showMap(CurrentLocale) ->
-   io_lib:format(".................................................... ~n",    []) ++
+   io_lib:format("..................................... ~s ............ ~n",    [dispLocale(CurrentLocale, 10)]) ++
    io_lib:format("....  --- ~s ........................................ ~n",   [dispLocale(CurrentLocale, 1)]) ++
    io_lib:format("... / ... | ........................................ ~n",    []) ++
    io_lib:format(". ~s ..... | ........................................ ~n",    [dispLocale(CurrentLocale, 5)]) ++
-   io_lib:format("......... | ........................................ ~n",    []) ++
-   io_lib:format("......... ~s ... ~s .................................. ~n", [dispLocale(CurrentLocale, 0), dispLocale(CurrentLocale, 3)]) ++
-   io_lib:format("......... | ... | .................................. ~n",    []) ++
+   io_lib:format(". | ..... | ........................................ ~n",    []) ++
+   io_lib:format(". | ..... ~s ... ~s .................................. ~n", [dispLocale(CurrentLocale, 0), dispLocale(CurrentLocale, 3)]) ++
+   io_lib:format(". ~s ..... | ... | .................................. ~n",    [dispLocale(CurrentLocale, 6)]) ++
    io_lib:format("......... | ... | .................................. ~n",    []) ++
    io_lib:format("......... ~s --- ~s .................................. ~n",  [dispLocale(CurrentLocale, 2), dispLocale(CurrentLocale, 4)]) ++
    io_lib:format(".................................................... ~n",    []).
@@ -166,16 +185,20 @@ locationDesc(2)   -> io_lib:format("2. Depths of the Earth~nYou find yourself in
 locationDesc(3)   -> io_lib:format("3. Vault of the Drow~nYou have entered a hemispherical cyst in the crust of the earth, a huge domed vault miles long and nearly as wide.", []);
 locationDesc(4)   -> io_lib:format("4. Mouth of the Yawning Cave~nYou step into the inky darkness, a chorus of glowing eyes following your every move.", []);
 locationDesc(5)   -> io_lib:format("5. Falador~nYou journey west to the City of the White Knights. The building are marble and pristine and men and women of status fill the streets. You feel like you don't belong here.", []);
+locationDesc(6)   -> io_lib:format("6. Draynor Manor~nFollowing the long since abandoned path leading from the city, you arrive at the haunted manor. You think to yourself, 'It would be wise to turn back now'", []);
+locationDesc(10)   -> io_lib:format("?. Ape Atoll~n...You wake up stranded on an island filled with evil monkeys. Maybe you should't have drank that ale. There also seems to be a boat which could bring you home...", []);
 locationDesc(Loc) -> io_lib:format("Oops! Unknown locale: ~w.", [Loc]).
 
 
 % Location Items
 locationItems(0)    -> [dagger, ale, steak];
-locationItems(1)    -> [item1a, item1b];
-locationItems(2)    -> [item2];
+locationItems(1)    -> [];
+locationItems(2)    -> [];
 locationItems(3)    -> [];
-locationItems(4)    -> [item4a, item4b, item4c];
-locationItems(5)    -> [item5];
+locationItems(4)    -> [];
+locationItems(5)    -> [];
+locationItems(6)    -> [key];
+locationItems(10)   -> [mysteriousMask];
 locationItems(_Loc) -> [].  % TODO: throw exception due to the invalid location value.
 
 
@@ -185,6 +208,14 @@ showInventory([])            -> io_lib:format("You are not carrying anything of 
 showInventory(InventoryList) -> io_lib:format("You are carrying ~w.", [InventoryList]).
 
 pickUp(CurrentLocale, Inventory) -> Inventory ++ locationItems(CurrentLocale).
+
+drank(ServerPid, {CurrentLocale, Direction}, Inventory) ->
+   case lists:member(ale, Inventory) of
+      true ->
+         move(ServerPid, {CurrentLocale, Direction}, Inventory);
+      false ->
+         {CurrentLocale, "You have no ale to drink. Maybe you should go find some...", Inventory}
+   end.
 
 
 itsPitchDark() -> io_lib:format("You are likely to be eaten by a grue. ~n",         []) ++
