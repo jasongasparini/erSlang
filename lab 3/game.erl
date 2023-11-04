@@ -138,13 +138,15 @@ serverLoop() ->
 mapper(_, drink) -> 10;
 mapper(-1, north) -> 0;
 mapper( 0, north) -> 1;
-mapper( 0, south) -> 2;
+mapper( 0, east) -> 3;
+% mapper( 0, south) -> 2; path removed
 % mapper( 0, west)  -> 5; path removed
-mapper( 1, south) -> 0;
+mapper( 1, south) -> 0; 
 mapper( 1, west)  -> 5;
-mapper( 2, north) -> 0;
-mapper( 2, east)  -> 4;
+% mapper( 2, north) -> 0; this location is getting moved
+% mapper( 2, east)  -> 4;
 mapper( 3, south) -> 4;
+mapper( 3, north) -> 2;
 mapper( 4, north) -> 3;
 mapper( 4, west)  -> 2;
 % mapper( 5, north) -> 1; doesnt exist
@@ -157,16 +159,16 @@ mapper( _, _)     -> -1.
 
 % Show map. Double-check with mapper().
 showMap(CurrentLocale) ->
-   io_lib:format("..................................... ~s ............ ~n",    [dispLocale(CurrentLocale, 10)]) ++
-   io_lib:format("....  --- ~s ........................................ ~n",   [dispLocale(CurrentLocale, 1)]) ++
-   io_lib:format("... / ... | ........................................ ~n",    []) ++
-   io_lib:format(". ~s ..... | ........................................ ~n",    [dispLocale(CurrentLocale, 5)]) ++
-   io_lib:format(". | ..... | ........................................ ~n",    []) ++
-   io_lib:format(". | ..... ~s ... ~s .................................. ~n", [dispLocale(CurrentLocale, 0), dispLocale(CurrentLocale, 3)]) ++
-   io_lib:format(". ~s ..... | ... | .................................. ~n",    [dispLocale(CurrentLocale, 6)]) ++
-   io_lib:format("......... | ... | .................................. ~n",    []) ++
-   io_lib:format("......... ~s --- ~s .................................. ~n",  [dispLocale(CurrentLocale, 2), dispLocale(CurrentLocale, 4)]) ++
-   io_lib:format(".................................................... ~n",    []).
+   io_lib:format("...................................... ~s ............ ~n",    [dispLocale(CurrentLocale, 10)]) ++
+   io_lib:format("....  --- ~s ..... ~s -----............................. ~n",   [dispLocale(CurrentLocale, 1), dispLocale(CurrentLocale, 2)]) ++
+   io_lib:format("... / ... | ..... | .................................. ~n",    []) ++
+   io_lib:format(". ~s ..... | ..... | .................................. ~n",    [dispLocale(CurrentLocale, 5)]) ++
+   io_lib:format(". | ..... | ..... | .................................. ~n",    []) ++
+   io_lib:format(". | ..... ~s ----- ~s .................................. ~n", [dispLocale(CurrentLocale, 0), dispLocale(CurrentLocale, 3)]) ++
+   io_lib:format(". ~s ............. | .................................. ~n",    [dispLocale(CurrentLocale, 6)]) ++
+   io_lib:format("................. | .................................. ~n",    []) ++
+   io_lib:format("................. ~s .................................. ~n",  [dispLocale(CurrentLocale, 4)]) ++
+   io_lib:format("..................................................... ~n",    []).
 
 
 dispLocale(CurrentLocale, MapLoc) ->
