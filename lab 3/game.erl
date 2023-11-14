@@ -15,7 +15,7 @@
 
 start() ->
    % -- Spawn the server process.
-   io:fwrite("Starting AG server.~n",[]),
+   io:fwrite("Starting JG GAME.~n",[]),
    ServerPid = spawn(fun serverLoop/0),
    % -- Display the initial location description by moving north from -1.
    {_NewLocale, Description, _NewInventory} = processCommand(-1, "north", ServerPid, []),
