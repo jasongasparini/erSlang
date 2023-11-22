@@ -46,7 +46,7 @@ serverLoop() -> receive
                       NewBoard = processPlayerMove(PlayerPos, Board),
                       % Do more stuff here.
 
-                      {tttServer, self()} ! {}
+                      {tttServer, self()} ! {},
                       serverLoop();
 
                    {FromNode, computer_turn, Board} ->
@@ -80,10 +80,12 @@ replaceInList(Value, Position, List) ->
    Part1 ++ [Value] ++ Tail.                           % CONS together the result: Part1 ++ the new Value ++ the Tail from Part2.
 
 makeMove(Board) ->
-   ComputerMove = calculate(0, Board),
-   io:fwrite("Server is Placing a O into position ~w.~n", [ComputerMove]),
+   ComputerMove = calculate(Board),
+   io:fwrite("Server is Placing a 0 into position ~w.~n", [ComputerMove]),
     UpdatedBoard = replaceInList(-1, ComputerMove, Board),
     UpdatedBoard.
+
+calculate(Board) -> openPos(0, Board).
 
 openPos(Target, [Head | Tail]) when (Target == Head) -> 1;
 openPos(Target, [Head | Tail]) when (Target /= Head) -> 1 + openPos(Target, Tail);      
