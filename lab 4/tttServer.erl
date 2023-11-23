@@ -52,12 +52,14 @@ serverLoop() -> receive
                         case winner(NewBoard) of
                            true ->
                               io:fwrite("~sSending [game_over] response to node ~w. Player wins!~n", [?id, FromNode]),
+                              drawBoard(NewBoard),
                               {tttClient, FromNode} ! {node(), {game_result, player_wins}},
                               serverLoop();
                            false ->
                               case lists:all(fun(X) -> X =/= 0 end, NewBoard) of   % Tie clause
                                     true ->
                                        io:fwrite("~sSending [game_over] response to node ~w. It's a tie!~n", [?id, FromNode]),
+                                       drawBoard(NewBoard),
                                        {tttClient, FromNode} ! {node(), {game_result, tie}},
                                        serverLoop();
                                     
@@ -67,6 +69,7 @@ serverLoop() -> receive
                                        case winner(NewNewBoard) of
                                           true ->
                                                 io:fwrite("~sSending [game_over] response to node ~w. Computer wins!~n", [?id, FromNode]),
+                                                drawBoard(NewNewBoard),
                                                 {tttClient, FromNode} ! {node(), {game_result, computer_wins}},
                                                 serverLoop();
 
@@ -123,3 +126,16 @@ checkForPattern(Board, [A, B, C]) ->
     ElementB = lists:nth(B, Board),
     ElementC = lists:nth(C, Board),
     (ElementA =:= ElementB) andalso (ElementB =:= ElementC) andalso (ElementA =/= 0).
+
+drawBoard(Board) -> io:fwrite(" ~s | ~s | ~s ~n", [getDisplay(Board,1), getDisplay(Board,2), getDisplay(Board,3)] ),
+                    io:fwrite("---+---+---~n", []),
+                    io:fwrite(" ~s | ~s | ~s ~n", [getDisplay(Board,4), getDisplay(Board,5), getDisplay(Board,6)] ),
+                    io:fwrite("---+---+---~n", []),
+                    io:fwrite(" ~s | ~s | ~s ~n", [getDisplay(Board,7), getDisplay(Board,8), getDisplay(Board,9)] ).
+
+getDisplay(Board,Position) -> case lists:nth(Position, Board) of
+                                -1 -> ["O"];
+                                 0 -> [" "];
+                                 1 -> ["X"];
+                                 _  -> " "
+                              end.
