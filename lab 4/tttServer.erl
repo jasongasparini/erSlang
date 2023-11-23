@@ -47,37 +47,43 @@ serverLoop() -> receive
                                  [?id, FromNode, Board, PlayerPos]),
 
                         % New board with the player's move
-                        NewBoard = processPlayerMove(PlayerPos, Board),
+                        if(PlayerPos < 1 orelse PlayerPos > 9) ->
+                           {tttClient, FromNode} ! {node(), player_turn, Board},
+                           serverLoop();
+                        ?else ->
+                           NewBoard = processPlayerMove(PlayerPos, Board),
+                           
 
-                        case winner(NewBoard) of
-                           true ->
-                              io:fwrite("~sSending [game_over] response to node ~w. Player wins!~n", [?id, FromNode]),
-                              drawBoard(NewBoard),
-                              {tttClient, FromNode} ! {node(), {game_result, player_wins}},
-                              serverLoop();
-                           false ->
-                              case lists:all(fun(X) -> X =/= 0 end, NewBoard) of   % Tie clause
-                                    true ->
-                                       io:fwrite("~sSending [game_over] response to node ~w. It's a tie!~n", [?id, FromNode]),
-                                       drawBoard(NewBoard),
-                                       {tttClient, FromNode} ! {node(), {game_result, tie}},
-                                       serverLoop();
-                                    
-                                    false ->
-                                       NewNewBoard = makeMove(NewBoard),
-                                       % Check for winner
-                                       case winner(NewNewBoard) of
-                                          true ->
-                                                io:fwrite("~sSending [game_over] response to node ~w. Computer wins!~n", [?id, FromNode]),
-                                                drawBoard(NewNewBoard),
-                                                {tttClient, FromNode} ! {node(), {game_result, computer_wins}},
-                                                serverLoop();
+                           case winner(NewBoard) of
+                              true ->
+                                 io:fwrite("~sSending [game_over] response to node ~w. Player wins!~n", [?id, FromNode]),
+                                 drawBoard(NewBoard),
+                                 {tttClient, FromNode} ! {node(), {game_result, player_wins}},
+                                 serverLoop();
+                              false ->
+                                 case lists:all(fun(X) -> X =/= 0 end, NewBoard) of   % Tie clause
+                                       true ->
+                                          io:fwrite("~sSending [game_over] response to node ~w. It's a tie!~n", [?id, FromNode]),
+                                          drawBoard(NewBoard),
+                                          {tttClient, FromNode} ! {node(), {game_result, tie}},
+                                          serverLoop();
+                                       
+                                       false ->
+                                          NewNewBoard = makeMove(NewBoard),
+                                          % Check for winner
+                                          case winner(NewNewBoard) of
+                                             true ->
+                                                   io:fwrite("~sSending [game_over] response to node ~w. Computer wins!~n", [?id, FromNode]),
+                                                   drawBoard(NewNewBoard),
+                                                   {tttClient, FromNode} ! {node(), {game_result, computer_wins}},
+                                                   serverLoop();
 
-                                          false -> % Return the board to client for next move                                             
-                                                {tttClient, FromNode} ! {node(), player_turn, NewNewBoard},
-                                                serverLoop()
-                                       end
-                              end
+                                             false -> % Return the board to client for next move                                             
+                                                   {tttClient, FromNode} ! {node(), player_turn, NewNewBoard},
+                                                   serverLoop()
+                                          end
+                                 end
+                           end
                         end;
 
                    {FromNode, _Any} ->
