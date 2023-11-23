@@ -38,7 +38,8 @@ serverLoop() -> receive
                       io:fwrite("~sReceived [start_game] request from node ~w.~n",[?id, FromNode]),
                       io:fwrite("~sSending [player_turn] response to node ~w.~n",[?id, FromNode]),
                       InitialBoard = [0,0,0, 0,0,0, 0,0,0],
-                      {tttClient, FromNode} ! {node(), player_turn, InitialBoard},
+                      NewBoard = makeMove(InitialBoard),
+                      {tttClient, FromNode} ! {node(), player_turn, NewBoard},
                       serverLoop();
 
                   {FromNode, process_player_turn, Board, PlayerPos} ->

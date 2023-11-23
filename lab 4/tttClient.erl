@@ -52,6 +52,28 @@ clientLoop() -> receive
                       {tttServer, FromNode} ! {node(), process_player_turn, Board, hd(PlayerMove)},
                       clientLoop();
 
+                      % These are the ending scenarios based off the win conditions sent from the server
+                   {FromNode, {game_result, player_wins}} ->
+                     io:fwrite("~sReceived [game_result] request from node ~w.~n",[?id, FromNode]),
+                     % drawBoard(Board),
+                     io:format("Winner...The server learns...~n"),
+                     
+                     erlang:halt();
+
+                   {FromNode, {game_result, tie}} ->
+                     io:fwrite("~sReceived [game_result] request from node ~w.~n",[?id, FromNode]),
+                     % drawBoard(Board),
+                     io:format("You tied. How boring...It seems like this has happened before...~n"),
+                     
+                     erlang:halt();
+                     
+                   {FromNode, {game_result, computer_wins}} ->
+                     io:fwrite("~sReceived [game_result] request from node ~w.~n",[?id, FromNode]),
+                     % drawBoard(Board),
+                     io:format("Get rekt. You may never win. Give up for eternity.~n"),
+                     
+                     erlang:halt();                     
+
                    {FromNode, _Any}  ->
                       io:fwrite("~sReceived unknown request [~p] from node ~w.~n",[?id, _Any, FromNode]),
                       clientLoop()
@@ -61,24 +83,6 @@ clientLoop() -> receive
 %
 % Private; no messages either.
 %
-
-% Not sure where I want this yet
-% processPlayerMove(Position, Board) ->
-%    Target = lists:nth(Position, Board),
-%    if(Target == 0) ->
-%       io:fwrite("~sPlacing an X into position ~w.~n", [?id, Position]),
-%       UpdatedBoard = replaceInList(1, Position, Board),
-%       UpdatedBoard;
-%    ?else ->
-%       io:fwrite("~sCannot place an X into position ~w.~n", [?id, Position]),
-%       Board
-%    end. % if
-
-% replaceInList(Value, Position, List) ->
-%    {Part1, Part2} = lists:split(Position-1, List),     % Break the list in two just before the specified Position.
-%    [_ | Tail] = Part2,                                 % Separate Part2 into Head and Tail, discarding the Head.
-%    Part1 ++ [Value] ++ Tail.                           % CONS together the result: Part1 ++ the new Value ++ the Tail from Part2.
-
 
 drawBoard(Board) -> io:fwrite(" ~s | ~s | ~s ~n", [getDisplay(Board,1), getDisplay(Board,2), getDisplay(Board,3)] ),
                     io:fwrite("---+---+---~n", []),
