@@ -41,18 +41,40 @@ serverLoop() -> receive
                       {tttClient, FromNode} ! {node(), player_turn, InitialBoard},
                       serverLoop();
 
-                   {FromNode, process_player_turn, Board, PlayerPos} ->
-                      io:fwrite("~sReceived [process_player_turn] request from node ~w with board ~w and player move ~w.~n",[?id, FromNode, Board, PlayerPos]),
-                      NewBoard = processPlayerMove(PlayerPos, Board),
-                      % Do more stuff here.
+                  {FromNode, process_player_turn, Board, PlayerPos} ->
+                        io:fwrite("~sReceived [process_player_turn] request from node ~w with board ~w and player move ~w.~n",
+                                 [?id, FromNode, Board, PlayerPos]),
 
-                      {tttServer, self()} ! {},
-                      serverLoop();
+                        % New board with the player's move
+                        NewBoard = processPlayerMove(PlayerPos, Board),
 
-                   {FromNode, computer_turn, Board} ->
-                      io:fwrite("~sReceived [computer_turn] request from node ~w with board ~p.~n",[?id, FromNode, Board]),
-                      % Do more stuff here.
-                      serverLoop();
+                        case winner(NewBoard) of
+                           true ->
+                              io:fwrite("~sSending [game_over] response to node ~w. Player wins!~n", [?id, FromNode]),
+                              {tttClient, FromNode} ! {node(), {game_result, player_wins}},
+                              serverLoop();
+                           false ->
+                              case lists:all(fun(X) -> X =/= 0 end, NewBoard) of   % Tie clause
+                                    true ->
+                                       io:fwrite("~sSending [game_over] response to node ~w. It's a tie!~n", [?id, FromNode]),
+                                       {tttClient, FromNode} ! {node(), {game_result, tie}},
+                                       serverLoop();
+                                    
+                                    false ->
+                                       NewNewBoard = makeMove(NewBoard),
+                                       % Check for winner
+                                       case winner(NewNewBoard) of
+                                          true ->
+                                                io:fwrite("~sSending [game_over] response to node ~w. Computer wins!~n", [?id, FromNode]),
+                                                {tttClient, FromNode} ! {node(), {game_result, computer_wins}},
+                                                serverLoop();
+
+                                          false -> % Return the board to client for next move                                             
+                                                {tttClient, FromNode} ! {node(), player_turn, NewNewBoard},
+                                                serverLoop()
+                                       end
+                              end
+                        end;
 
                    {FromNode, _Any} ->
                       io:fwrite("~sReceived unknown request [~p] from node ~w.~n",[?id, _Any, FromNode]),
