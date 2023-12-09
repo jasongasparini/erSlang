@@ -1,0 +1,3 @@
+-module(varrock).
+-author('Jason Gasparini').
+-define(else, true).

@@ -1,0 +1,3 @@
+-module(alkharid).
+-author('Jason Gasparini').
+-define(else, true).

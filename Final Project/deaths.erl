@@ -1,0 +1,3 @@
+-module(deaths).
+-author('Jason Gasparini').
+-define(else, true).

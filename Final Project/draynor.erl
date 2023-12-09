@@ -1,0 +1,3 @@
+-module(draynor).
+-author('Jason Gasparini').
+-define(else, true).

@@ -1,0 +1,3 @@
+-module(falador).
+-author('Jason Gasparini').
+-define(else, true).

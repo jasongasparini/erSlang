@@ -1,0 +1,3 @@
+-module(emirs).
+-author('Jason Gasparini').
+-define(else, true).
