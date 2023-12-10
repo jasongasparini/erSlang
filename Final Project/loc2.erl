@@ -1,40 +1,42 @@
--module(draynor).
--author('Jason Gasparini').
--define(else, true).
--define(id, "-- location draynor: ").
+% loc2.erl - Distributed Adventure Game Location 2
+
+-module(loc2).
+-author('Alan G. Labouseur').
+-define(else, true).  % -- This is to make the if statements (somewhat) readable.
+-define(id, "-- location 2: ").
 
 
 %--------
 % Public
 %--------
 
--export([start/0, start/1]).
+-export([start/0, start/1, locationLoop/0]).
 
 start() ->
    io:fwrite("You must supply a game sever node.~n", []).
 
 start(ServerNode) ->
    % -- Spawn this location process.
-   io:fwrite("~sStarting Location draynor (pid ~w) on node ~w.~n",[?id, self(), node()]),
-   LocPid = spawn(fun locationLoop/0),
+   io:fwrite("~sStarting Location 2 (pid ~w) on node ~w.~n",[?id, self(), node()]),
+   LocPid = spawn(loc2, locationLoop, []),
    io:fwrite("~sSpawned location with pid ~w",[?id, LocPid]),
    % We want to publish this process in Erlang's process registry.
    % Before we do that, we need to un-register it if it's already been registered.
-   SomePlace = whereis(draynor),
+   SomePlace = whereis(loc2),
    if (SomePlace /= undefined) ->  % "not undefined" = "is defined"  (This is horrible, I know.)
-      unregister(draynor);
+      unregister(loc2);
    ?else ->
       % The proccess was NOT already published/registered, so we don't really want to do anything here.
       true    % This is dumb, but I couldn't think of a better "no-op".
    end,
    % Publish this process in Erlang's process registry.
-   register(draynor, LocPid),
-   io:fwrite(", registered as ~w.~n",[draynor]),
+   register(loc2, LocPid),
+   io:fwrite(", registered as ~w.~n",[loc2]),
    % Send ourselves to the gameServer.
    io:fwrite("~sNotifying server on node ~w.~n",[?id, ServerNode]),
-   {gameServer, ServerNode} ! {node(), registerNewLocation, draynor},
+   {gameServer, ServerNode} ! {node(), registerNewLocation, loc2},
    % Initialize server monitoring.
-   draynor ! {monitor, ServerNode},
+   loc2 ! {monitor, ServerNode},
    ok.
 
 
@@ -57,7 +59,7 @@ locationLoop() ->
          exit(normal);
 
       {_FromNode, enter, GameClientNode}  ->
-         io:fwrite("~sA gameClient on ~w is entering draynor.~n",[?id, GameClientNode]),
+         io:fwrite("~sA gameClient on ~w is entering loc2.~n",[?id, GameClientNode]),
          {gameClient, GameClientNode} ! {node(), describe()},
          locationLoop();
 
@@ -71,4 +73,4 @@ locationLoop() ->
 % Private
 %--------
 describe() ->
-   io_lib:format("6. Draynor Manor~nFollowing the long since abandoned path leading from the city, you arrive at the haunted manor. You think to yourself, 'It would be wise to turn back now'", []).
+   io_lib:format("(2) You find yourself enmeshed in the long, dark, tea-time of the soul.", []).
