@@ -61,6 +61,12 @@ locationLoop() ->
          {gameClient, GameClientNode} ! {node(), describe()},
          locationLoop();
 
+      {_FromNode, pickup, GameClientNode}  ->
+         io:fwrite("~sA gameClient on ~w is picking up items from lumbridge.~n",[?id, GameClientNode]),
+         List = items(),
+         {gameClient, GameClientNode} ! {node(), items, List, _FromNode},
+         locationLoop();
+
       {FromNode, _Any}  ->
          io:fwrite("~sReceived request [~p] from node ~w.~n",[?id, _Any, FromNode]),
          locationLoop()
@@ -72,3 +78,5 @@ locationLoop() ->
 %--------
 describe() ->
    io_lib:format("0. Lumbridge~nThe village of newbies and veterans alike. It has a cozy atmosphere and many call it home.", []).
+
+items()    -> [dagger, ale, steak].

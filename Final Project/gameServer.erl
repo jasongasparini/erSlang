@@ -1,6 +1,7 @@
 -module(gameServer).
 -author('Jason Gasparini').
 -define(else, true).
+-define(id, "-- gameServer: ").
 
 %--------
 % Public
@@ -84,9 +85,26 @@ serverLoop() ->
             {gameClient, FromNode} ! {node(), "You cannot go that way."};
          ?else ->
             io:fwrite("~sFound node in the local process dictionary: [~w].~n", [?id, ClientLocNode]),
-            {gameClient, FromNode} ! {node(), "[debug] You CAN go that way."},
+            %{gameClient, FromNode} ! {node(), "[debug] You CAN go that way."},
             % Tell the ClientLocId on ClientLocNode that a gameClient on FromNode is entering.
             {ClientLocId, ClientLocNode} ! {node(), enter, FromNode}
+         end, % if
+         serverLoop();
+
+      {FromNode, pickupRequest, ClientLocId}  ->
+         io:fwrite("~sReceived pickupRequest message from node ~w for location [~w].~n",[?id, FromNode, ClientLocId]),
+         % Look up the ClientLocId in our local process dictionary
+         io:fwrite("~sGetting node for location [~w] from the local process dictionary.~n", [?id, ClientLocId]),
+         ClientLocNode = get(ClientLocId),
+         if ClientLocNode == undefined ->
+            io:fwrite("~sNode not found in the local process dictionary.~n", [?id]),
+            % Use only FromPid here because we don't know the registered name of the process (because there is none).
+            {gameClient, FromNode} ! {node(), "This location does not exist."};
+         ?else ->
+            io:fwrite("~sFound node in the local process dictionary: [~w].~n", [?id, ClientLocNode]),
+            %{gameClient, FromNode} ! {node(), "[debug] You CAN go that way."}, 
+            % Sends a pickup request to the desired location.
+            {ClientLocId, ClientLocNode} ! {node(), pickup, FromNode}
          end, % if
          serverLoop();
 

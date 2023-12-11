@@ -35,7 +35,8 @@ start(ServerNode) ->
    % Initialize server monitoring.
    gameClient ! {monitor, ServerNode},
    % -- Begin the play loop
-   playLoop(ServerNode).
+   Inventory = [],
+   playLoop(ServerNode, Inventory).
 
 
 %---------------------------------
@@ -56,9 +57,16 @@ clientLoop() ->
          % TODO: exit the playLoop too.
          exit(normal);
 
+      {FromNode, items, Items, ServerNode}  ->
+         io:fwrite("~sReceived items [~p] from node ~w.~n",[?id, Items, FromNode]),
+         playLoop(ServerNode, Items),
+         clientLoop();
+
       {FromNode, _Any}  ->
          io:fwrite("~sReceived message [~p] from node ~w.~n",[?id, _Any, FromNode]),
          clientLoop()
+
+      
    end.
 
 
@@ -66,23 +74,34 @@ clientLoop() ->
 % Private
 %---------
 
-playLoop(ServerNode) ->
+playLoop(ServerNode, Inventory) ->
    % -- Get a line of input from the user.
    Line = io:get_line(io_lib:format("~s[play] Enter action or help -] ", [?id])),  % Line is returned as a string.
-   {ResultAtom, ResultText} = processCommand(Line, ServerNode),
+   {ResultAtom, ResultText} = processCommand(Line, ServerNode, Inventory),
    %
    % -- Update the display.
    io:fwrite("~s~s~n", [?id, ResultText]),
    %
    % -- Quit or Recurse/Loop.
-   if (ResultAtom == quit) ->
-      io:fwrite("~sThank you for playing.~n", [?id]);
-   ?else ->
-     playLoop(ServerNode)  % This is tail recursion, so it's really a jump to the top of playLoop.
-   end. % if
+   case {ResultAtom, lists:member(ale, Inventory)} of
+      {drink, true} ->
+        io:fwrite("~sClient is now on a bender.~n", [?id]);
+      {drink, false} ->
+         io:fwrite("You have no ale to drink. Maybe you should go find some...~n"),
+         playLoop(ServerNode, Inventory);
+      {pickup, _} ->
+        io:fwrite("~sClient is picking up items. Your old items have been dropped.~n", [?id]);
+      {quit, _} ->
+        io:fwrite("~sThank you for playing.~n", [?id]);
+      _ ->
+        playLoop(ServerNode, Inventory)
+end.
 
 
-processCommand(Line , ServerNode) ->
+   
+
+
+processCommand(Line , ServerNode, Inventory) ->
    % Do some elementary parsing of the line in two parts:
    % 1. Remove the trailing newline charater.
    Command = lists:sublist(Line, length(Line)-1),  % (Because Line is a character list ending with a linefeed.)
@@ -97,6 +116,9 @@ processCommand(Line , ServerNode) ->
       "nodes"  -> {nodes,  listNodes()};
       "server" -> {server, server(ServerNode)};
       "go"     -> {go,     go(Noun, ServerNode)};
+      "pickup" -> {pickup, pickup(Noun, ServerNode)};
+      "drink"  -> {drink, drink(ServerNode, Inventory)};
+      "inventory" -> {inventory, showInventory(Inventory)};
       % -- Otherwise...
       _Else  -> {unknownCommand, "Silly human."}
    end.
@@ -118,8 +140,32 @@ server(ServerNode) ->
 
 go([_Space | Destination], ServerNode) ->
    DestAtom = list_to_atom(Destination),
-   io:fwrite("~s[debug] Going to location [~w].~n", [?id, DestAtom]),
-   {gameServer, ServerNode} ! {node(), goToLocation, DestAtom},
-   ok;
+   if DestAtom == ape ->
+      io:fwrite("Ape Atoll is but a myth...You don't know how to get there!~n");
+   true ->
+      io:fwrite("~s[debug] Going to location [~w].~n", [?id, DestAtom]),
+      {gameServer, ServerNode} ! {node(), goToLocation, DestAtom}
+   end,
+   ok; 
 go([], _ServerNode) ->
    io_lib:format("Where do you want to go?", []).
+
+pickup([_Space | Destination], ServerNode) ->
+   DestAtom = list_to_atom(Destination),
+   io:fwrite("~s[debug] Sending Item request to [~w].~n", [?id, DestAtom]),
+   {gameServer, ServerNode} ! {node(), pickupRequest, DestAtom},
+   ok.
+
+drink(ServerNode, Inventory) ->
+   case lists:member(ale, Inventory) of
+      true ->
+         {gameServer, ServerNode} ! {node(), pickupRequest, ape},
+         ok; % Added a comma here to separate the two expressions in the case clause
+      false ->
+         io:fwrite("You have no ale to drink. Maybe you should go find some...~n")
+   end,
+   ok.
+
+
+showInventory([])            -> io_lib:format("You are not carrying anything of use.~n", []);
+showInventory(InventoryList) -> io_lib:format("You are carrying ~w.~n", [InventoryList]).
