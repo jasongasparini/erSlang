@@ -63,6 +63,7 @@ locationLoop() ->
 
       {_FromNode, pickup, GameClientNode}  ->
          io:fwrite("~sA gameClient on ~w is picking up items from Ape Atoll.~n",[?id, GameClientNode]),
+         {gameClient, GameClientNode} ! {node(), describe()},
          List = items(),
          {gameClient, GameClientNode} ! {node(), items, List, _FromNode},
          locationLoop();
@@ -77,6 +78,6 @@ locationLoop() ->
 % Private
 %--------
 describe() ->
-   io_lib:format("?. Ape Atoll~n...You wake up stranded on an island filled with evil monkeys. Maybe you shouldn't have drank that ale. You see a boat in the distance which could bring you home...", []).
+   io_lib:format("?. Ape Atoll~n...You wake up stranded on an island filled with evil monkeys. Maybe you shouldn't have drank that ale. You see a boat in the distance which could bring you home...~nBefore you leave you pickup a strange mask laying by the wayside.", []).
 
 items()    -> [mysteriousMask].

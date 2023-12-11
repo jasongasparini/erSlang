@@ -61,6 +61,12 @@ locationLoop() ->
          {gameClient, GameClientNode} ! {node(), describe()},
          locationLoop();
 
+      {_FromNode, pickup, GameClientNode}  ->
+         io:fwrite("~sA gameClient on ~w is picking up items from emirs arena.~n",[?id, GameClientNode]),
+         List = items(),
+         {gameClient, GameClientNode} ! {node(), items, List, _FromNode},
+         locationLoop();
+
       {FromNode, _Any}  ->
          io:fwrite("~sReceived request [~p] from node ~w.~n",[?id, _Any, FromNode]),
          locationLoop()
@@ -71,4 +77,6 @@ locationLoop() ->
 % Private
 %--------
 describe() ->
-   io_lib:format("3. Emir's Arena~nAh, Emir's Arena, many stories have been told of great warriors making their name at this place.~nBut that was long ago, sand and dirt has molded what was and there is nothing left but the echos of the past.", []).
+   io_lib:format("3. Emir's Arena: Ah, Emir's Arena, many stories have been told of great warriors making their name at this place. But that was long ago, sand and dirt has molded what was and there is nothing left but the echos of the past. There is a larger door leading to the inner arena ruins. Are you brave enough to [enter]?", []).
+
+items()    -> [sand].

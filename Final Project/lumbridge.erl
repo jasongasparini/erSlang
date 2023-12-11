@@ -77,6 +77,6 @@ locationLoop() ->
 % Private
 %--------
 describe() ->
-   io_lib:format("0. Lumbridge~nThe village of newbies and veterans alike. It has a cozy atmosphere and many call it home.", []).
+   io_lib:format("1. Lumbridge~nThe village of newbies and veterans alike. It has a cozy atmosphere and many call it home.~nYou see a dagger stuck in a slice of steak and a full pitcher of ale laying on an empty table.", []).
 
 items()    -> [dagger, ale, steak].

@@ -61,6 +61,12 @@ locationLoop() ->
          {gameClient, GameClientNode} ! {node(), describe()},
          locationLoop();
 
+      {_FromNode, pickup, GameClientNode}  ->
+         io:fwrite("~sA gameClient on ~w is picking up items from falador.~n",[?id, GameClientNode]),
+         List = items(),
+         {gameClient, GameClientNode} ! {node(), items, List, _FromNode},
+         locationLoop();
+
       {FromNode, _Any}  ->
          io:fwrite("~sReceived request [~p] from node ~w.~n",[?id, _Any, FromNode]),
          locationLoop()
@@ -71,4 +77,6 @@ locationLoop() ->
 % Private
 %--------
 describe() ->
-   io_lib:format("5. Falador~nYou journey west to the City of the White Knights. The building are marble and pristine and men and women of status fill the streets. You feel like you don't belong here.", []).
+   io_lib:format("4. Falador~nYou journey west to the City of the White Knights. The building are marble and pristine and men and women of status fill the streets. You feel like you don't belong here.~nYou see some posh twat drop his handkerchief on the ground.", []).
+
+items()    -> [uselessHandkerchief].

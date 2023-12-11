@@ -83,19 +83,23 @@ playLoop(ServerNode, Inventory) ->
    io:fwrite("~s~s~n", [?id, ResultText]),
    %
    % -- Quit or Recurse/Loop.
-   case {ResultAtom, lists:member(ale, Inventory)} of
-      {drink, true} ->
-        io:fwrite("~sClient is now on a bender.~n", [?id]);
-      {drink, false} ->
-         io:fwrite("You have no ale to drink. Maybe you should go find some...~n"),
-         playLoop(ServerNode, Inventory);
-      {pickup, _} ->
-        io:fwrite("~sClient is picking up items. Your old items have been dropped.~n", [?id]);
-      {quit, _} ->
-        io:fwrite("~sThank you for playing.~n", [?id]);
+   case {ResultAtom, ResultText} of
+      {enter, emirs} ->
+         enter_arena(ServerNode, Inventory);
       _ ->
-        playLoop(ServerNode, Inventory)
-end.
+         case {ResultAtom, lists:member(ale, Inventory)} of
+            {drink, true} ->
+            io:fwrite("~sClient is now on a bender.~n", [?id]);
+            {drink, false} ->
+               playLoop(ServerNode, Inventory);
+            {pickup, _} ->
+            io:fwrite("~sClient is picking up items. Your old items have been dropped.~n", [?id]);
+            {quit, _} ->
+            io:fwrite("~sThank you for playing.~n", [?id]);
+            _ ->
+            playLoop(ServerNode, Inventory)
+         end
+   end.
 
 
    
@@ -119,12 +123,13 @@ processCommand(Line , ServerNode, Inventory) ->
       "pickup" -> {pickup, pickup(Noun, ServerNode)};
       "drink"  -> {drink, drink(ServerNode, Inventory)};
       "inventory" -> {inventory, showInventory(Inventory)};
+      "enter"  -> {enter, emirs};
       % -- Otherwise...
       _Else  -> {unknownCommand, "Silly human."}
    end.
 
 helpText() ->
-   io_lib:format("Commands: [help], [quit], [nodes], [server], [go <location>]", []).
+   io_lib:format("Commands: [help], [quit], [nodes], [server], [go <location>], [enter], [drink], [inventory], [pickup <location>]", []).
 
 listNodes() ->
    io_lib:format("This node: ~w~n", [node()]) ++   % No ?id here because it will be supplied when printed above.
@@ -146,7 +151,7 @@ go([_Space | Destination], ServerNode) ->
       io:fwrite("~s[debug] Going to location [~w].~n", [?id, DestAtom]),
       {gameServer, ServerNode} ! {node(), goToLocation, DestAtom}
    end,
-   ok; 
+   DestAtom; 
 go([], _ServerNode) ->
    io_lib:format("Where do you want to go?", []).
 
@@ -154,7 +159,9 @@ pickup([_Space | Destination], ServerNode) ->
    DestAtom = list_to_atom(Destination),
    io:fwrite("~s[debug] Sending Item request to [~w].~n", [?id, DestAtom]),
    {gameServer, ServerNode} ! {node(), pickupRequest, DestAtom},
-   ok.
+   ok;
+pickup([], _ServerNode) ->
+   io_lib:format("What location would you like to pick up items from?", []).
 
 drink(ServerNode, Inventory) ->
    case lists:member(ale, Inventory) of
@@ -169,3 +176,21 @@ drink(ServerNode, Inventory) ->
 
 showInventory([])            -> io_lib:format("You are not carrying anything of use.~n", []);
 showInventory(InventoryList) -> io_lib:format("You are carrying ~w.~n", [InventoryList]).
+
+enter_arena(ServerNode, Inventory) ->
+    io:format("Are you sure you want to enter Emir's inner arena ruins? (Y/N): "),
+    case io:get_line("") of
+        "Y\n" ->
+            case lists:member(mysteriousMask, Inventory) of
+                true ->
+                    io:format("You bravely enter the arena wearing the mysterious mask. As you take a step in you see the ghosts of legendary warriors rise from the sands. They welcome you as you have finally set them free with the power of the mask. You win...~n");
+                false ->
+                    io:format("You enter the arena, but you feel as if you should be wearing something. Maybe a mask of some sort? As you turn around to leave, corpses and skeletons wearing armors from different ages rise from the sands and visciously attack you. You Died...~n")
+            end;
+        "N\n" ->
+            io:format("You decide not to enter the arena. Maybe next time.~n"),
+            playLoop(ServerNode, Inventory);
+        _ ->
+            io:format("Invalid input. Please enter Y or N.~n"),
+            enter_arena(ServerNode, Inventory)
+    end.
